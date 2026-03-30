@@ -1,33 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VibeShare Direct</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeShare Nearby</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
 body{
   margin:0;
-  background:#0f172a;
+  font-family:sans-serif;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
   color:#fff;
   display:flex;
   justify-content:center;
   align-items:center;
   height:100vh;
-  font-family:sans-serif;
 }
 
 .app{
+  width:350px;
   text-align:center;
 }
 
+h1{
+  margin-bottom:20px;
+}
+
 button{
+  width:100%;
   padding:15px;
-  margin:10px;
+  margin:10px 0;
   border:none;
-  border-radius:10px;
-  background:#00f2ff;
+  border-radius:12px;
+  font-size:16px;
   font-weight:bold;
   cursor:pointer;
+}
+
+.send{background:#00f2ff;color:#000;}
+.receive{background:#00ff88;color:#000;}
+
+#fileInput{display:none;}
+
+.status{
+  margin-top:15px;
+  font-size:14px;
+  color:#aaa;
 }
 </style>
 </head>
@@ -35,42 +56,70 @@ button{
 <body>
 
 <div class="app">
-  <h2>⚡ VibeShare Direct</h2>
-  <input type="file" id="fileInput">
-  <br>
-  <button onclick="startSend()">Send</button>
-  <button onclick="startReceive()">Receive</button>
-  <p id="status">Idle</p>
+
+<h1>⚡ VibeShare</h1>
+
+<button class="send" onclick="startSend()">📤 Send</button>
+<input type="file" id="fileInput">
+
+<button class="receive" onclick="startReceive()">📥 Receive</button>
+
+<div class="status" id="status">Ready</div>
+
 </div>
 
 <script>
-let pc = new RTCPeerConnection();
+// Firebase config
+const firebaseConfig = {
+  databaseURL: "https://vibetransfer-adbdf-default-rtdb.firebaseio.com/"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let pc;
 let channel;
+let roomId = "room1"; // auto room (no code UI)
 
+// SEND
 function startSend(){
-  const file = document.getElementById("fileInput").files[0];
-  if(!file) return alert("Select file");
+  document.getElementById("fileInput").click();
 
-  channel = pc.createDataChannel("file");
+  document.getElementById("fileInput").onchange = async (e)=>{
+    const file = e.target.files[0];
 
-  channel.onopen = ()=>{
-    document.getElementById("status").innerText = "Sending...";
-    channel.send(file);
-  };
+    pc = new RTCPeerConnection();
+    channel = pc.createDataChannel("file");
 
-  pc.onicecandidate = e=>{
-    if(e.candidate){
-      console.log("Send this to receiver:", JSON.stringify(e.candidate));
-    }
-  };
+    channel.onopen = ()=>{
+      document.getElementById("status").innerText = "Sending...";
+      channel.send(file);
+    };
 
-  pc.createOffer().then(o=>{
-    pc.setLocalDescription(o);
-    console.log("Offer:", JSON.stringify(o));
-  });
+    pc.onicecandidate = e=>{
+      if(e.candidate){
+        db.ref("rooms/"+roomId+"/sender").set(JSON.stringify(e.candidate));
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    db.ref("rooms/"+roomId+"/offer").set(JSON.stringify(offer));
+
+    db.ref("rooms/"+roomId+"/answer").on("value", async snap=>{
+      if(snap.exists()){
+        const ans = JSON.parse(snap.val());
+        await pc.setRemoteDescription(ans);
+      }
+    });
+  }
 }
 
+// RECEIVE
 function startReceive(){
+  pc = new RTCPeerConnection();
+
   pc.ondatachannel = e=>{
     channel = e.channel;
 
@@ -80,14 +129,28 @@ function startReceive(){
       a.href = URL.createObjectURL(blob);
       a.download = "received_file";
       a.click();
+
+      document.getElementById("status").innerText = "File received!";
     };
   };
 
   pc.onicecandidate = e=>{
     if(e.candidate){
-      console.log("Send this to sender:", JSON.stringify(e.candidate));
+      db.ref("rooms/"+roomId+"/receiver").set(JSON.stringify(e.candidate));
     }
   };
+
+  db.ref("rooms/"+roomId+"/offer").on("value", async snap=>{
+    if(snap.exists()){
+      const offer = JSON.parse(snap.val());
+      await pc.setRemoteDescription(offer);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      db.ref("rooms/"+roomId+"/answer").set(JSON.stringify(answer));
+    }
+  });
 }
 </script>
 
