@@ -3,155 +3,326 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VibeShare Nearby</title>
+<title>Fling Chat</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:sans-serif;
-  background:linear-gradient(135deg,#0f172a,#1e293b);
-  color:#fff;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-}
+/* ✅ YOUR ORIGINAL UI — NO CHANGE */
+body { margin:0; font-family:'Segoe UI', sans-serif; color:white; }
+.dashboard { height:100vh; display:flex; justify-content:center; align-items:center; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
+.card { background: rgba(255,255,255,0.05); backdrop-filter: blur(15px); padding:40px; border-radius:20px; text-align:center; width:300px; box-shadow:0 10px 40px rgba(0,0,0,0.5); animation: fadeIn 1s ease; }
+.card h1 { margin-bottom:10px; }
+.card p { color:#ccc; margin-bottom:20px; }
+.card input { width:100%; padding:12px; border:none; border-radius:25px; background:#1e2a38; color:white; margin-bottom:20px; text-align:center; }
+.card button { width:100%; padding:12px; border:none; border-radius:25px; background: linear-gradient(45deg, #2aabee, #0088cc); color:white; font-size:16px; cursor:pointer; transition:0.3s; }
+.card button:hover { transform:scale(1.05); }
+.features { margin-top:15px; font-size:12px; color:#aaa; display:flex; justify-content:space-around; }
 
-.app{
-  width:350px;
-  text-align:center;
-}
+.chat-animation { position: relative; height: 120px; margin-top: 20px; }
+.person { position: absolute; font-size: 28px; animation: float 3s infinite ease-in-out; }
+.boy1 { left: 10%; bottom: 0; }
+.girl1 { left: 30%; bottom: 0; }
+.boy2 { right: 30%; bottom: 0; }
+.girl2 { right: 10%; bottom: 0; }
 
-h1{
-  margin-bottom:20px;
-}
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
-button{
-  width:100%;
-  padding:15px;
-  margin:10px 0;
-  border:none;
-  border-radius:12px;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
-}
+.bubble { position: absolute; background: rgba(255,255,255,0.1); padding: 6px 10px; border-radius: 10px; font-size: 12px; opacity: 0; animation: talk 6s infinite; }
+.b1 { left: 10%; bottom: 50px; animation-delay: 0s; }
+.b2 { left: 30%; bottom: 60px; animation-delay: 1.5s; }
+.b3 { right: 30%; bottom: 60px; animation-delay: 3s; }
+.b4 { right: 10%; bottom: 50px; animation-delay: 4.5s; }
 
-.send{background:#00f2ff;color:#000;}
-.receive{background:#00ff88;color:#000;}
+@keyframes talk { 0% { opacity: 0; transform: translateY(10px); } 10%, 30% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes fadeIn { from {opacity:0; transform:translateY(20px);} to {opacity:1; transform:translateY(0);} }
 
-#fileInput{display:none;}
+#chatUI { background:#0e1621; height:100vh; display:flex; flex-direction:column; }
+.header { background:#17212b; padding:10px; display:flex; gap:10px; }
+.header input { flex:1; padding:8px; border-radius:20px; border:none; background:#242f3d; color:white; }
 
-.status{
-  margin-top:15px;
-  font-size:14px;
-  color:#aaa;
-}
+.chat-box { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; }
+
+.msg { max-width:65%; padding:10px; margin:5px 0; border-radius:15px; }
+.sent { background:#2b5278; align-self:flex-end; }
+.received { background:#182533; align-self:flex-start; }
+
+.tick { font-size:10px; text-align:right; opacity:0.7; }
+
+.input-box { display:flex; padding:10px; background:#17212b; }
+.input-box input { flex:1; padding:10px; border-radius:20px; border:none; background:#242f3d; color:white; }
+.input-box button { margin-left:8px; padding:10px; border-radius:50%; border:none; background:#2aabee; color:white; }
+
+.typing { font-size:12px; color:#aaa; padding-left:15px; }
+
+.online-indicator { display: inline-block; width: 8px; height: 8px; background: #4ade80; border-radius: 50%; margin-right: 5px; }
+.offline-indicator { background: #6b7280; }
 </style>
 </head>
 
 <body>
 
-<div class="app">
+<div id="dashboard" class="dashboard">
+  <div class="card">
+    <h1>💬 Fling Chat</h1>
+    <p>Connect anonymously. Chat instantly.</p>
+    <input id="username" placeholder="Enter your username">
+    <button onclick="createUser()">Start Chatting</button>
 
-<h1>⚡ VibeShare</h1>
+    <div class="features">
+      <span>✔ Real-time</span>
+      <span>✔ Nearby</span>
+      <span>✔ Anonymous</span>
+    </div>
 
-<button class="send" onclick="startSend()">📤 Send</button>
-<input type="file" id="fileInput">
+    <div class="chat-animation">
+      <div class="person boy1">👦</div>
+      <div class="person girl1">👧</div>
+      <div class="person boy2">🧑</div>
+      <div class="person girl2">👩</div>
+      <div class="bubble b1">Hey!</div>
+      <div class="bubble b2">Hi 😊</div>
+      <div class="bubble b3">What's up?</div>
+      <div class="bubble b4">Let's chat!</div>
+    </div>
+  </div>
+</div>
 
-<button class="receive" onclick="startReceive()">📥 Receive</button>
+<div id="chatUI" style="display:none;">
+  <div class="header">
+    <button onclick="goHome()">🏠</button>
+    <input id="searchUser" placeholder="Search user">
+    <button onclick="findNearby()">📍</button>
+  </div>
 
-<div class="status" id="status">Ready</div>
+  <div id="chatBox" class="chat-box"></div>
+  <div id="typingStatus" class="typing"></div>
 
+  <div class="input-box">
+    <input id="message" placeholder="Type message">
+    <button onclick="sendMessage()">➤</button>
+  </div>
 </div>
 
 <script>
-// Firebase config
+// FIREBASE
 const firebaseConfig = {
-  databaseURL: "https://vibetransfer-adbdf-default-rtdb.firebaseio.com/"
+  databaseURL: "https://fling-chat-95e81-default-rtdb.firebaseio.com/"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let pc;
-let channel;
-let roomId = "room1"; // auto room (no code UI)
+let currentUser = "";
+let chatRoom = "";
+let typingTimeout;
+let usersRef;
 
-// SEND
-function startSend(){
-  document.getElementById("fileInput").click();
+// CREATE USER
+function createUser() {
+  currentUser = document.getElementById("username").value.trim();
+  if (!currentUser) return alert("Enter username");
 
-  document.getElementById("fileInput").onchange = async (e)=>{
-    const file = e.target.files[0];
-
-    pc = new RTCPeerConnection();
-    channel = pc.createDataChannel("file");
-
-    channel.onopen = ()=>{
-      document.getElementById("status").innerText = "Sending...";
-      channel.send(file);
+  navigator.geolocation.getCurrentPosition(pos => {
+    // Set user data with online status
+    const userData = {
+      name: currentUser,
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      online: true,
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
     };
+    
+    db.ref("activeUsers/" + currentUser).set(userData);
+    db.ref("activeUsers/" + currentUser).onDisconnect().remove();
 
-    pc.onicecandidate = e=>{
-      if(e.candidate){
-        db.ref("rooms/"+roomId+"/sender").set(JSON.stringify(e.candidate));
-      }
-    };
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("chatUI").style.display = "flex";
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    db.ref("rooms/"+roomId+"/offer").set(JSON.stringify(offer));
-
-    db.ref("rooms/"+roomId+"/answer").on("value", async snap=>{
-      if(snap.exists()){
-        const ans = JSON.parse(snap.val());
-        await pc.setRemoteDescription(ans);
-      }
-    });
-  }
-}
-
-// RECEIVE
-function startReceive(){
-  pc = new RTCPeerConnection();
-
-  pc.ondatachannel = e=>{
-    channel = e.channel;
-
-    channel.onmessage = msg=>{
-      const blob = msg.data;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "received_file";
-      a.click();
-
-      document.getElementById("status").innerText = "File received!";
-    };
-  };
-
-  pc.onicecandidate = e=>{
-    if(e.candidate){
-      db.ref("rooms/"+roomId+"/receiver").set(JSON.stringify(e.candidate));
-    }
-  };
-
-  db.ref("rooms/"+roomId+"/offer").on("value", async snap=>{
-    if(snap.exists()){
-      const offer = JSON.parse(snap.val());
-      await pc.setRemoteDescription(offer);
-
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      db.ref("rooms/"+roomId+"/answer").set(JSON.stringify(answer));
-    }
+    findNearby();
+    showActiveUsers();
+  }, () => {
+    alert("Location access required");
   });
 }
+
+// SHOW ONLY CURRENTLY ACTIVE USERS
+function showActiveUsers() {
+  usersRef = db.ref("activeUsers");
+  usersRef.on("value", snapshot => {
+    let users = snapshot.val();
+    let html = "<h3 style='margin:15px 0 10px 0; color:#aaa;'>Active Users</h3>";
+
+    if (!users || Object.keys(users).length === 0) {
+      html += "<div style='padding:20px; color:#666; text-align:center;'>No active users</div>";
+    } else {
+      for (let key in users) {
+        if (key !== currentUser) {
+          let u = users[key];
+          html += `
+            <div style="padding:15px;background:#1e2a38;margin:5px;border-radius:15px;cursor:pointer; display:flex; align-items:center; transition:0.3s"
+                 onclick="startChat('${key}')"
+                 onmouseover="this.style.background='#2b5278'"
+                 onmouseout="this.style.background='#1e2a38'">
+              <span class="online-indicator"></span>
+              ${key} 
+              <span style="margin-left:auto; font-size:12px; opacity:0.7;">${Math.round(getDistance(u.lat, u.lng))}km</span>
+            </div>
+          `;
+        }
+      }
+    }
+
+    document.getElementById("chatBox").innerHTML = html;
+  });
+}
+
+// START PRIVATE CHAT
+function startChat(user) {
+  chatRoom = [currentUser, user].sort().join("_");
+  document.getElementById("chatBox").innerHTML = `
+    <div style="text-align:center; padding:20px; color:#aaa;">
+      <h3>Chatting with ${user}</h3>
+      <button onclick="showActiveUsers()" style="background:#2aabee; border:none; padding:8px 16px; border-radius:20px; color:white; cursor:pointer;">← Back to users</button>
+    </div>
+  `;
+  loadMessages();
+}
+
+// SEND MESSAGE
+function sendMessage() {
+  let msg = document.getElementById("message").value.trim();
+  if (!msg || !chatRoom) return;
+
+  let id = Date.now();
+
+  db.ref("chats/" + chatRoom + "/" + id).set({
+    sender: currentUser,
+    text: msg,
+    status: "sent",
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  document.getElementById("message").value = "";
+}
+
+// LOAD MESSAGES
+function loadMessages() {
+  db.ref("chats/" + chatRoom).off();
+
+  db.ref("chats/" + chatRoom).orderByChild("timestamp").on("value", snapshot => {
+    let data = snapshot.val();
+    let html = "";
+
+    if (!data) {
+      html = "<div style='text-align:center; padding:30px; color:#666;'>No messages yet. Say hi! 👋</div>";
+    } else {
+      for (let id in data) {
+        let msg = data[id];
+        let type = msg.sender === currentUser ? "sent" : "received";
+
+        html += `
+          <div class="msg ${type}">
+            ${msg.text}
+          </div>
+        `;
+      }
+    }
+
+    let chatBox = document.getElementById("chatBox");
+    chatBox.innerHTML = `
+      <div style="text-align:center; padding:20px; color:#aaa;">
+        <h3>Chatting with ${chatRoom.split("_")[0] === currentUser ? chatRoom.split("_")[1] : chatRoom.split("_")[0]}</h3>
+        <button onclick="showActiveUsers()" style="background:#2aabee; border:none; padding:8px 16px; border-radius:20px; color:white; cursor:pointer;">← Back to users</button>
+      </div>
+      ${html}
+    `;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+}
+
+// SEARCH → PRIVATE CHAT
+document.getElementById("searchUser").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    let searchTerm = this.value.trim();
+    if (searchTerm) {
+      db.ref("activeUsers").once("value").then(snapshot => {
+        let users = snapshot.val();
+        let found = false;
+        for (let key in users) {
+          if (key.toLowerCase().includes(searchTerm.toLowerCase()) && key !== currentUser) {
+            startChat(key);
+            found = true;
+            break;
+          }
+        }
+        if (!found) alert("User not found or offline");
+      });
+    }
+  }
+});
+
+// NEARBY USERS
+function findNearby() {
+  navigator.geolocation.getCurrentPosition(pos => {
+    let lat1 = pos.coords.latitude;
+    let lon1 = pos.coords.longitude;
+
+    db.ref("activeUsers").once("value").then(snapshot => {
+      let users = snapshot.val();
+      let nearbyUsers = [];
+      
+      for (let key in users) {
+        if (key !== currentUser) {
+          let u = users[key];
+          let distance = getDistance(lat1, lon1, u.lat, u.lng);
+          if (distance <= 50) {
+            nearbyUsers.push({name: key, distance: Math.round(distance)});
+          }
+        }
+      }
+
+      let html = "<h3 style='margin:15px 0 10px 0; color:#aaa;'>Nearby Users (≤50km)</h3>";
+      if (nearbyUsers.length === 0) {
+        html += "<div style='padding:20px; color:#666; text-align:center;'>No nearby users</div>";
+      } else {
+        nearbyUsers.forEach(user => {
+          html += `
+            <div style="padding:15px;background:#1e2a38;margin:5px;border-radius:15px;cursor:pointer; display:flex; align-items:center; transition:0.3s"
+                 onclick="startChat('${user.name}')"
+                 onmouseover="this.style.background='#2b5278'"
+                 onmouseout="this.style.background='#1e2a38'">
+              <span class="online-indicator"></span>
+              ${user.name} 
+              <span style="margin-left:auto; font-size:12px; opacity:0.7;">${user.distance}km</span>
+            </div>
+          `;
+        });
+      }
+      document.getElementById("chatBox").innerHTML = html;
+    });
+  });
+}
+
+// DISTANCE CALCULATION
+function getDistance(lat1, lon1, lat2, lon2) {
+  let R = 6371; // km
+  let dLat = (lat2 - lat1) * Math.PI/180;
+  let dLon = (lon2 - lon1) * Math.PI/180;
+  let a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+// HOME
+function goHome() {
+  if (usersRef) usersRef.off();
+  location.reload();
+}
+
+// Enter key to send message
+document.getElementById("message").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") sendMessage();
+});
 </script>
 
 </body>
