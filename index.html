@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeShare Max</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+
+body {
+  background: linear-gradient(120deg,#0f172a,#1e293b,#020617);
+  color:#fff;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+/* Layout */
+.app {
+  width:900px;
+  height:600px;
+  display:flex;
+  border-radius:20px;
+  overflow:hidden;
+  backdrop-filter:blur(20px);
+  box-shadow:0 0 50px rgba(0,255,255,0.15);
+}
+
+/* Panels */
+.panel {
+  flex:1;
+  padding:25px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+/* Left */
+.left {
+  background: rgba(255,255,255,0.04);
+  border-right:1px solid rgba(255,255,255,0.1);
+}
+
+/* Right */
+.right {
+  background: rgba(0,0,0,0.3);
+}
+
+/* Titles */
+.title {
+  font-size:24px;
+  margin-bottom:15px;
+}
+
+/* Drop zone */
+.drop {
+  border:2px dashed #00f2ff;
+  padding:30px;
+  text-align:center;
+  border-radius:15px;
+  cursor:pointer;
+  margin-bottom:15px;
+  transition:0.3s;
+}
+.drop:hover {
+  background:rgba(0,255,255,0.05);
+}
+
+/* Info */
+.info {
+  font-size:14px;
+  color:#aaa;
+  margin-bottom:10px;
+}
+
+/* Buttons */
+button {
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(45deg,#00f2ff,#00ff88);
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+/* Progress */
+.progress {
+  height:6px;
+  background:#222;
+  border-radius:10px;
+  overflow:hidden;
+  margin-top:10px;
+}
+.progress div {
+  height:100%;
+  width:0%;
+  background:#00f2ff;
+}
+
+/* Input */
+input {
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  margin-top:10px;
+}
+
+/* Code */
+.code {
+  margin-top:10px;
+  font-size:18px;
+  color:#00f2ff;
+}
+
+/* File preview */
+.fileBox {
+  padding:10px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.05);
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<!-- SEND -->
+<div class="panel left">
+  <div class="title">🚀 Send File</div>
+
+  <div class="drop" onclick="fileInput.click()">
+    Click or Drag File
+    <input type="file" id="fileInput" hidden>
+  </div>
+
+  <div class="info">Max supported: Depends on server (UI supports large files)</div>
+
+  <div class="fileBox" id="fileInfo">No file selected</div>
+
+  <button onclick="upload()">Upload & Generate Code</button>
+
+  <div class="progress"><div id="bar"></div></div>
+
+  <div class="code" id="code"></div>
+</div>
+
+<!-- RECEIVE -->
+<div class="panel right">
+  <div class="title">📥 Receive File</div>
+
+  <input id="codeInput" placeholder="Enter transfer code">
+
+  <button onclick="download()">Download File</button>
+
+  <div class="info">Secure, fast & temporary transfer</div>
+</div>
+
+</div>
+
+<script>
+const firebaseConfig = {
+  databaseURL: "https://vibetransfer-adbdf-default-rtdb.firebaseio.com/"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+const storage = firebase.storage();
+
+let file;
+
+// select file
+document.getElementById("fileInput").addEventListener("change",(e)=>{
+  file = e.target.files[0];
+
+  document.getElementById("fileInfo").innerHTML =
+    "📄 " + file.name + "<br>Size: " + (file.size/1024/1024).toFixed(2) + " MB";
+});
+
+// code generator
+function gen(){
+  return Math.random().toString(36).substring(2,7).toUpperCase();
+}
+
+// upload
+function upload(){
+  if(!file) return alert("Select file");
+
+  const code = gen();
+  const ref = storage.ref("files/"+code+"_"+file.name);
+
+  const task = ref.put(file);
+
+  task.on("state_changed",snap=>{
+    let percent = (snap.bytesTransferred/snap.totalBytes)*100;
+    document.getElementById("bar").style.width = percent+"%";
+  },
+  err=>alert(err),
+  async ()=>{
+    const url = await ref.getDownloadURL();
+
+    await db.ref("links/"+code).set({
+      url:url,
+      name:file.name
+    });
+
+    document.getElementById("code").innerText="Code: "+code;
+  });
+}
+
+// download
+function download(){
+  const code = document.getElementById("codeInput").value;
+
+  db.ref("links/"+code).once("value",snap=>{
+    if(!snap.exists()) return alert("Invalid code");
+
+    const data = snap.val();
+
+    const a = document.createElement("a");
+    a.href = data.url;
+    a.download = data.name;
+    a.click();
+  });
+}
+</script>
+
+</body>
+</html>
